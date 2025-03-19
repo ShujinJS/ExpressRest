@@ -1,5 +1,7 @@
 const express = require("express");
 const router = express.Router();
+const crypto = require("crypto");
+const validApiKeys = require("../utils");
 
 const users = [
   {
@@ -10,13 +12,25 @@ const users = [
 
 // GET users listing
 router.get("/", (req, res, next) => {
-  console.log(users);
-  res.send(users);
+  const apiKey = req.headers["authorization"];
+  if (validApiKeys.has(apiKey)) {
+    res.send(users);
+  } else {
+    res.status(401).json({ error: "Unauthorized" });
+  }
 });
 
 // POST user to the list
 router.post("/add", (req, res, next) => {
-  users.push(req.body);
+  // Generate a unique API key
+  const apiKey = crypto.randomBytes(32).toString("hex");
+  validApiKeys.add(apiKey);
+
+  users.push({
+    ...req.body,
+    apiKey: apiKey,
+  });
+
   res.send(`${req.body.name} added to the list`);
 });
 
@@ -25,18 +39,18 @@ router.post("/login", (req, res, next) => {
   const response = {
     message: "",
     user: null,
+    apiKey: "",
   };
 
   users.find((user) => {
     const { name, password } = req.body;
-    user.name === req.body.name;
+
     if (user.name === name && user.password === password) {
       response.message = "User authenticated";
       response.user = user;
       return response;
     } else {
-      response.message = "User not found";
-      return response;
+      return;
     }
   });
 
